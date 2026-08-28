@@ -32,8 +32,8 @@ data/processed/*
 artifacts/results/*
 artifacts/splits/*
 figures/*
-deployment/*.joblib
-deployment/*.json
+!figures/*.png
+
 
 # Keep repository placeholders
 !data/raw/.gitkeep
