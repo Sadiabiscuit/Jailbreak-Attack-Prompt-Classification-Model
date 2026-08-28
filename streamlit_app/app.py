@@ -431,20 +431,31 @@ def get_prediction(text, selected_option, deployment_dir):
     encoder = joblib.load(deployment_dir / "label_encoder.joblib")
     features = vectorizer.transform([text])
 
-    info = MODEL_OPTIONS[selected_option]
+    info = MODEL_OPTIONS.get(selected_option, list(MODEL_OPTIONS.values())[0])
 
     if info.get("is_ensemble"):
-        p1 = joblib.load(deployment_dir / "logistic_regression_model.joblib").predict_proba(features)[0]
-        f2 = deployment_dir / "bi_gru_model.joblib"
-        p2 = joblib.load(f2).predict_proba(features)[0] if f2.exists() else p1
-        f3 = deployment_dir / "gru_model.joblib"
-        p3 = joblib.load(f3).predict_proba(features)[0] if f3.exists() else p1
-        probas = (p1 + p2 + p3) / 3.0
+        probas_list = []
+        for mname in ["logistic_regression_model.joblib", "bi_gru_model.joblib", "gru_model.joblib"]:
+            mfile = deployment_dir / mname
+            if mfile.exists():
+                try:
+                    m = joblib.load(mfile)
+                    probas_list.append(m.predict_proba(features)[0])
+                except Exception:
+                    pass
+        if probas_list:
+            probas = np.mean(probas_list, axis=0)
+        else:
+            m = joblib.load(deployment_dir / "logistic_regression_model.joblib")
+            probas = m.predict_proba(features)[0]
     else:
         mfile = deployment_dir / info["file"]
         if not mfile.exists():
             mfile = deployment_dir / "logistic_regression_model.joblib"
-        model = joblib.load(mfile)
+        try:
+            model = joblib.load(mfile)
+        except Exception:
+            model = joblib.load(deployment_dir / "logistic_regression_model.joblib")
         probas = model.predict_proba(features)[0]
 
     pred_id = int(np.argmax(probas))

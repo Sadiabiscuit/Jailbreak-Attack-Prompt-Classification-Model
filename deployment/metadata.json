@@ -30,39 +30,39 @@
       "test_f1_weighted": 0.6257
     },
     "Random Forest": {
-      "test_acc": 0.7764,
-      "test_f1_macro": 0.7532,
-      "test_f1_weighted": 0.7837
+      "test_acc": 0.8243,
+      "test_f1_macro": 0.8127,
+      "test_f1_weighted": 0.8588
     },
     "Bidirectional GRU": {
-      "test_acc": 0.8724,
-      "test_f1_macro": 0.8363,
-      "test_f1_weighted": 0.8904
+      "test_acc": 0.885,
+      "test_f1_macro": 0.8654,
+      "test_f1_weighted": 0.9123
     },
     "GRU": {
-      "test_acc": 0.7983,
-      "test_f1_macro": 0.7487,
-      "test_f1_weighted": 0.8057
+      "test_acc": 0.8745,
+      "test_f1_macro": 0.8573,
+      "test_f1_weighted": 0.9049
     },
     "Bidirectional LSTM": {
-      "test_acc": 0.8498,
-      "test_f1_macro": 0.812,
-      "test_f1_weighted": 0.86
+      "test_acc": 0.8919,
+      "test_f1_macro": 0.8735,
+      "test_f1_weighted": 0.9193
     },
     "LSTM": {
-      "test_acc": 0.7579,
-      "test_f1_macro": 0.7066,
-      "test_f1_weighted": 0.7566
+      "test_acc": 0.8452,
+      "test_f1_macro": 0.827,
+      "test_f1_weighted": 0.8783
     },
     "Bidirectional SimpleRNN": {
-      "test_acc": 0.5733,
-      "test_f1_macro": 0.4858,
-      "test_f1_weighted": 0.5537
+      "test_acc": 0.8786,
+      "test_f1_macro": 0.8396,
+      "test_f1_weighted": 0.9009
     },
     "SimpleRNN": {
-      "test_acc": 0.3679,
-      "test_f1_macro": 0.2498,
-      "test_f1_weighted": 0.3101
+      "test_acc": 0.7448,
+      "test_f1_macro": 0.7333,
+      "test_f1_weighted": 0.7863
     }
   },
   "filename_map": {

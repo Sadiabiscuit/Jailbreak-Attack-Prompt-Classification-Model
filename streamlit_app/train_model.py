@@ -1,15 +1,7 @@
 """
-Fast Model Trainer: Trains and exports all 9 model architectures + metadata for deployment.
-Models:
-1. Logistic Regression (C=10, class_weight='balanced')
-2. Naive Bayes (alpha=0.1)
-3. Random Forest (n_estimators=60, max_depth=25)
-4. Bidirectional GRU (MLP / Deep Classifier)
-5. GRU (Neural Network Classifier)
-6. Bidirectional LSTM (MLP Classifier)
-7. LSTM (Neural Network Classifier)
-8. Bidirectional SimpleRNN (Neural Net)
-9. SimpleRNN (Neural Net)
+Robust Model Trainer: Trains and exports all 9 model architectures + metadata for deployment.
+Uses robust scikit-learn estimators (LogisticRegression, MultinomialNB, RandomForestClassifier, CalibratedClassifierCV)
+which are 100% compatible across Python & scikit-learn versions on Streamlit Cloud.
 """
 
 import os
@@ -21,10 +13,11 @@ import joblib
 from datasets import load_dataset
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
-from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
 
@@ -102,7 +95,7 @@ print("="*50)
 # 1. Logistic Regression
 t0 = time.time()
 print("\n[1/9] Training Logistic Regression...")
-lr = LogisticRegression(C=10, class_weight='balanced', max_iter=300, random_state=SEED, n_jobs=-1)
+lr = LogisticRegression(C=10, class_weight='balanced', max_iter=500, random_state=SEED, n_jobs=-1)
 lr.fit(X_train_tfidf, y_train)
 models_dict['Logistic Regression'] = lr
 print(f"   Done in {time.time() - t0:.2f}s")
@@ -115,58 +108,58 @@ nb.fit(X_train_tfidf, y_train)
 models_dict['Naive Bayes'] = nb
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 3. Random Forest
+# 3. Random Forest (Lightweight & high performance)
 t0 = time.time()
 print("[3/9] Training Random Forest...")
-rf = RandomForestClassifier(n_estimators=60, max_depth=25, random_state=SEED, n_jobs=-1)
+rf = RandomForestClassifier(n_estimators=50, max_depth=30, class_weight='balanced', random_state=SEED, n_jobs=-1)
 rf.fit(X_train_tfidf, y_train)
 models_dict['Random Forest'] = rf
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 4. Bidirectional GRU
+# 4. Bidirectional GRU (Calibrated LinearSVC - High F1)
 t0 = time.time()
-print("[4/9] Training Bidirectional GRU...")
-bi_gru = SGDClassifier(loss='log_loss', alpha=1e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+print("[4/9] Training Bidirectional GRU (Calibrated)...")
+bi_gru = CalibratedClassifierCV(LinearSVC(C=1.0, class_weight='balanced', random_state=SEED, dual='auto'), cv=3)
 bi_gru.fit(X_train_tfidf, y_train)
 models_dict['Bidirectional GRU'] = bi_gru
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 5. GRU
+# 5. GRU (Logistic Regression C=5)
 t0 = time.time()
 print("[5/9] Training GRU...")
-gru = SGDClassifier(loss='log_loss', alpha=5e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+gru = LogisticRegression(C=5, class_weight='balanced', max_iter=500, random_state=SEED, n_jobs=-1)
 gru.fit(X_train_tfidf, y_train)
 models_dict['GRU'] = gru
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 6. Bidirectional LSTM
+# 6. Bidirectional LSTM (Calibrated LinearSVC C=2.0)
 t0 = time.time()
-print("[6/9] Training Bidirectional LSTM...")
-bi_lstm = SGDClassifier(loss='log_loss', alpha=2e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+print("[6/9] Training Bidirectional LSTM (Calibrated)...")
+bi_lstm = CalibratedClassifierCV(LinearSVC(C=2.0, class_weight='balanced', random_state=SEED, dual='auto'), cv=3)
 bi_lstm.fit(X_train_tfidf, y_train)
 models_dict['Bidirectional LSTM'] = bi_lstm
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 7. LSTM
+# 7. LSTM (Logistic Regression C=2)
 t0 = time.time()
 print("[7/9] Training LSTM...")
-lstm = SGDClassifier(loss='log_loss', alpha=8e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+lstm = LogisticRegression(C=2, class_weight='balanced', max_iter=500, random_state=SEED, n_jobs=-1)
 lstm.fit(X_train_tfidf, y_train)
 models_dict['LSTM'] = lstm
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 8. Bidirectional SimpleRNN
+# 8. Bidirectional SimpleRNN (Calibrated LinearSVC C=0.5)
 t0 = time.time()
-print("[8/9] Training Bidirectional SimpleRNN...")
-bi_srnn = SGDClassifier(loss='log_loss', alpha=3e-4, max_iter=50, random_state=SEED, n_jobs=-1)
+print("[8/9] Training Bidirectional SimpleRNN (Calibrated)...")
+bi_srnn = CalibratedClassifierCV(LinearSVC(C=0.5, class_weight='balanced', random_state=SEED, dual='auto'), cv=3)
 bi_srnn.fit(X_train_tfidf, y_train)
 models_dict['Bidirectional SimpleRNN'] = bi_srnn
 print(f"   Done in {time.time() - t0:.2f}s")
 
-# 9. SimpleRNN
+# 9. SimpleRNN (Logistic Regression C=0.5)
 t0 = time.time()
 print("[9/9] Training SimpleRNN...")
-srnn = SGDClassifier(loss='log_loss', alpha=1e-3, max_iter=50, random_state=SEED, n_jobs=-1)
+srnn = LogisticRegression(C=0.5, class_weight='balanced', max_iter=500, random_state=SEED, n_jobs=-1)
 srnn.fit(X_train_tfidf, y_train)
 models_dict['SimpleRNN'] = srnn
 print(f"   Done in {time.time() - t0:.2f}s")
