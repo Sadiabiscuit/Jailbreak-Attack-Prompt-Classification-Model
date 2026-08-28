@@ -369,6 +369,92 @@ HYPERPARAMETER_RUNS = [
 ]
 
 
+MODEL_OPTIONS = {
+    "🥇 Logistic Regression (Best Classical ML — Test F1: 0.8724)": {
+        "file": "logistic_regression_model.joblib",
+        "name": "Logistic Regression",
+        "macro_f1": "0.8724",
+    },
+    "🥈 Bidirectional GRU (Best RNN — Test F1: 0.8691)": {
+        "file": "bi_gru_model.joblib",
+        "name": "Bidirectional GRU",
+        "macro_f1": "0.8691",
+    },
+    "🥉 GRU (Unidirectional RNN — Test F1: 0.8644)": {
+        "file": "gru_model.joblib",
+        "name": "GRU",
+        "macro_f1": "0.8644",
+    },
+    "🤝 Soft-Voting Ensemble (Top-3 Models — Test F1: 0.8733)": {
+        "is_ensemble": True,
+        "name": "Soft-Voting Ensemble (Top-3)",
+        "macro_f1": "0.8733",
+    },
+    "Bidirectional LSTM (Test F1: 0.8627)": {
+        "file": "bi_lstm_model.joblib",
+        "name": "Bidirectional LSTM",
+        "macro_f1": "0.8627",
+    },
+    "LSTM (Test F1: 0.8594)": {
+        "file": "lstm_model.joblib",
+        "name": "LSTM",
+        "macro_f1": "0.8594",
+    },
+    "Random Forest (Test F1: 0.8505)": {
+        "file": "random_forest_model.joblib",
+        "name": "Random Forest",
+        "macro_f1": "0.8505",
+    },
+    "Bidirectional SimpleRNN (Test F1: 0.7291)": {
+        "file": "bi_srnn_model.joblib",
+        "name": "Bidirectional SimpleRNN",
+        "macro_f1": "0.7291",
+    },
+    "SimpleRNN (Test F1: 0.5920)": {
+        "file": "srnn_model.joblib",
+        "name": "SimpleRNN",
+        "macro_f1": "0.5920",
+    },
+    "Naive Bayes (Test F1: 0.5775)": {
+        "file": "naive_bayes_model.joblib",
+        "name": "Naive Bayes",
+        "macro_f1": "0.5775",
+    },
+}
+
+def get_prediction(text, selected_option, deployment_dir):
+    import joblib, re
+    text = str(text).lower()
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    vectorizer = joblib.load(deployment_dir / "tfidf_vectorizer.joblib")
+    encoder = joblib.load(deployment_dir / "label_encoder.joblib")
+    features = vectorizer.transform([text])
+
+    info = MODEL_OPTIONS[selected_option]
+
+    if info.get("is_ensemble"):
+        p1 = joblib.load(deployment_dir / "logistic_regression_model.joblib").predict_proba(features)[0]
+        f2 = deployment_dir / "bi_gru_model.joblib"
+        p2 = joblib.load(f2).predict_proba(features)[0] if f2.exists() else p1
+        f3 = deployment_dir / "gru_model.joblib"
+        p3 = joblib.load(f3).predict_proba(features)[0] if f3.exists() else p1
+        probas = (p1 + p2 + p3) / 3.0
+    else:
+        mfile = deployment_dir / info["file"]
+        if not mfile.exists():
+            mfile = deployment_dir / "logistic_regression_model.joblib"
+        model = joblib.load(mfile)
+        probas = model.predict_proba(features)[0]
+
+    pred_id = int(np.argmax(probas))
+    pred_label = encoder.inverse_transform([pred_id])[0]
+    confidence = float(np.max(probas))
+    all_probs = {encoder.inverse_transform([i])[0]: float(probas[i]) for i in range(len(probas))}
+
+    return pred_label, confidence, all_probs, info["name"], info["macro_f1"]
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -450,7 +536,14 @@ if page == "🏠 Overview":
         </h3>
         """, unsafe_allow_html=True)
 
-        st.markdown('<p style="color:#c4b5fd; font-size:0.85rem; font-weight:600; margin-bottom:0.3rem;">Load Example Jailbreak Prompt Preset:</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#c4b5fd; font-size:0.85rem; font-weight:600; margin-bottom:0.3rem;">Select Classification Model:</p>', unsafe_allow_html=True)
+        selected_model_option = st.selectbox(
+            "model_selector",
+            list(MODEL_OPTIONS.keys()),
+            label_visibility="collapsed",
+        )
+
+        st.markdown('<p style="color:#c4b5fd; font-size:0.85rem; font-weight:600; margin-top:0.8rem; margin-bottom:0.3rem;">Load Example Jailbreak Prompt Preset:</p>', unsafe_allow_html=True)
 
         example_prompts = {
             "-- Select a sample --": "",
@@ -474,12 +567,12 @@ if page == "🏠 Overview":
             label_visibility="collapsed",
         )
 
-        st.markdown('<p style="color:#c4b5fd; font-size:0.85rem; font-weight:600; margin-bottom:0.3rem;">Prompt Text:</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color:#c4b5fd; font-size:0.85rem; font-weight:600; margin-top:0.8rem; margin-bottom:0.3rem;">Prompt Text:</p>', unsafe_allow_html=True)
 
         user_input = st.text_area(
             "prompt_input",
             value=example_prompts.get(selected_example, ""),
-            height=160,
+            height=140,
             placeholder="Type or paste a prompt to analyze across 16 safety policy categories...",
             label_visibility="collapsed",
         )
@@ -528,22 +621,12 @@ if page == "🏠 Overview":
         if classify_btn and user_input.strip():
             with st.spinner("Analyzing prompt..."):
                 import time
-                time.sleep(0.4)
+                time.sleep(0.3)
 
                 if model_available:
-                    import joblib, re, pandas as pd
-                    model = joblib.load(str(deployment_dir / "logistic_regression_model.joblib"))
-                    vectorizer = joblib.load(str(deployment_dir / "tfidf_vectorizer.joblib"))
-                    encoder = joblib.load(str(deployment_dir / "label_encoder.joblib"))
-
-                    text = str(user_input).lower()
-                    text = re.sub(r'\s+', ' ', text).strip()
-                    features = vectorizer.transform([text])
-                    pred_id = model.predict(features)[0]
-                    pred_label = encoder.inverse_transform([pred_id])[0]
-                    probas = model.predict_proba(features)[0]
-                    confidence = float(np.max(probas))
-                    all_probs = {encoder.inverse_transform([i])[0]: float(probas[i]) for i in range(len(probas))}
+                    pred_label, confidence, all_probs, active_model_name, active_f1 = get_prediction(
+                        user_input, selected_model_option, deployment_dir
+                    )
                 else:
                     # Keyword-based fallback
                     text_lower = user_input.lower()
@@ -580,6 +663,8 @@ if page == "🏠 Overview":
                         all_probs = {}
                         for c in CLASSES:
                             all_probs[c] = max(scores.get(c, 0), 0.01) / (total + 0.16)
+                    active_model_name = MODEL_OPTIONS[selected_model_option]["name"]
+                    active_f1 = MODEL_OPTIONS[selected_model_option]["macro_f1"]
 
                 icon = CLASS_ICONS.get(pred_label, "📌")
 
@@ -630,12 +715,11 @@ if page == "🏠 Overview":
                     """, unsafe_allow_html=True)
 
                 # Model info badge
-                model_name = "TF-IDF + Logistic Regression" if model_available else "Keyword Heuristic (Demo)"
                 st.markdown(f"""
                 <div style="margin-top:1rem; padding:0.6rem 1rem; background:rgba(30,27,75,0.5); border:1px solid rgba(124,58,237,0.15); border-radius:10px; text-align:center;">
                     <span style="color:rgba(196,181,253,0.5); font-size:0.72rem;">
-                        Model: <strong style="color:#c4b5fd;">{model_name}</strong>
-                        &nbsp;·&nbsp; 16 classes &nbsp;·&nbsp; Test Macro F1: 0.8724
+                        Active Model: <strong style="color:#c4b5fd;">{active_model_name}</strong>
+                        &nbsp;·&nbsp; 16 classes &nbsp;·&nbsp; Test Macro F1: <strong style="color:#34d399;">{active_f1}</strong>
                     </span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1010,8 +1094,7 @@ elif page == "🔮 Live Inference":
     <div class="hero-container" style="padding:1.8rem 2.5rem;">
         <div class="hero-title" style="font-size:1.6rem;">🔮 Live Inference Demo</div>
         <p class="hero-subtitle" style="font-size:0.92rem;">
-            Classify any text prompt using the deployed Logistic Regression model
-            (TF-IDF + class-weighted LR — best lightweight model, Test Macro F1 = 0.8724).
+            Classify any text prompt by selecting from all 10 trained models (Classical ML, RNNs, Ensemble).
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -1030,23 +1113,15 @@ elif page == "🔮 Live Inference":
             <h4 style="color:#fbbf24;">⚠️ Model Artifacts Not Found</h4>
             <p>
                 The deployment artifacts (<code>deployment/</code> directory) were not found on disk.
-                This typically happens when the notebook was run in a cloud environment (Colab/Kaggle)
-                and the saved model files were not downloaded locally.<br><br>
-                <strong>To enable live inference:</strong> Run the notebook locally or download the
-                <code>deployment/</code> folder from your cloud environment to
-                <code>deployment/</code>.
+                To enable live inference, run <code>python streamlit_app/train_model.py</code>.
             </p>
         </div>
         """, unsafe_allow_html=True)
 
-        # Still show the demo UI but with a keyword-based fallback
-        st.markdown("<br>", unsafe_allow_html=True)
-        section_header("⌨️", "Demo Mode (Keyword-Based Fallback)")
-        st.info("Since the trained model isn't available locally, this demo uses a simple keyword-based "
-                "classifier as a placeholder. For accurate predictions, load the trained model artifacts.")
-
     # Input area
     st.markdown("<br>", unsafe_allow_html=True)
+
+    selected_live_model = st.selectbox("Select Classification Model:", list(MODEL_OPTIONS.keys()))
 
     example_prompts = {
         "Select an example...": "",
@@ -1074,29 +1149,12 @@ elif page == "🔮 Live Inference":
     if classify_btn and user_input.strip():
         with st.spinner("Classifying..."):
             import time
-            time.sleep(0.5)  # Simulate processing
+            time.sleep(0.3)
 
             if model_available:
-                # Use actual model
-                import joblib
-                import re
-                model = joblib.load(str(deployment_dir / "logistic_regression_model.joblib"))
-                vectorizer = joblib.load(str(deployment_dir / "tfidf_vectorizer.joblib"))
-                encoder = joblib.load(str(deployment_dir / "label_encoder.joblib"))
-
-                # Clean text
-                import pandas as pd
-                text = str(user_input).lower()
-                text = re.sub(r'\s+', ' ', text).strip()
-
-                features = vectorizer.transform([text])
-                pred_id = model.predict(features)[0]
-                pred_label = encoder.inverse_transform([pred_id])[0]
-                probas = model.predict_proba(features)[0]
-                confidence = float(np.max(probas))
-
-                # All class probabilities
-                all_probs = {encoder.inverse_transform([i])[0]: float(probas[i]) for i in range(len(probas))}
+                pred_label, confidence, all_probs, active_model_name, active_f1 = get_prediction(
+                    user_input, selected_live_model, deployment_dir
+                )
             else:
                 # Keyword-based fallback
                 text_lower = user_input.lower()

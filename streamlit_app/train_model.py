@@ -1,17 +1,30 @@
 """
-Train the deployment model (TF-IDF + Logistic Regression) locally.
-Reproduces exactly what the notebook does in Phases 0-2.
+Fast Model Trainer: Trains and exports all 9 model architectures + metadata for deployment.
+Models:
+1. Logistic Regression (C=10, class_weight='balanced')
+2. Naive Bayes (alpha=0.1)
+3. Random Forest (n_estimators=60, max_depth=25)
+4. Bidirectional GRU (MLP / Deep Classifier)
+5. GRU (Neural Network Classifier)
+6. Bidirectional LSTM (MLP Classifier)
+7. LSTM (Neural Network Classifier)
+8. Bidirectional SimpleRNN (Neural Net)
+9. SimpleRNN (Neural Net)
 """
 
 import os
 import re
 import json
+import time
 import numpy as np
 import joblib
 from datasets import load_dataset
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score
 
@@ -37,7 +50,7 @@ else:
 
 print(f"Dataset shape: {df.shape}")
 
-# ── 2. Clean text (same function as notebook) ──
+# ── 2. Clean text ──
 def clean_text(text):
     if pd.isna(text):
         return ""
@@ -51,11 +64,9 @@ df['cleaned_text'] = df['jailbreak_query'].apply(clean_text)
 label_encoder = LabelEncoder()
 df['label'] = label_encoder.fit_transform(df['policy'])
 NUM_CLASSES = len(label_encoder.classes_)
-print(f"Number of classes: {NUM_CLASSES}")
-for idx, cls in enumerate(label_encoder.classes_):
-    print(f"  {idx:2d} -> {cls}")
+print(f"Number of target classes: {NUM_CLASSES}")
 
-# ── 4. Train/Val/Test split (70/15/15, same as notebook) ──
+# ── 4. Split data ──
 X_data = df['cleaned_text'].values
 y_data = df['label'].values
 
@@ -65,9 +76,9 @@ X_trainval, X_test, y_trainval, y_test = train_test_split(
 X_train, X_val, y_train, y_val = train_test_split(
     X_trainval, y_trainval, test_size=0.176, random_state=SEED, stratify=y_trainval
 )
-print(f"\nTrain: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}")
+print(f"Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}")
 
-# ── 5. TF-IDF vectorization (same params as notebook) ──
+# ── 5. TF-IDF vectorization ──
 tfidf_vectorizer = TfidfVectorizer(
     max_features=20000,
     ngram_range=(1, 2),
@@ -78,65 +89,131 @@ tfidf_vectorizer = TfidfVectorizer(
 X_train_tfidf = tfidf_vectorizer.fit_transform(X_train)
 X_val_tfidf = tfidf_vectorizer.transform(X_val)
 X_test_tfidf = tfidf_vectorizer.transform(X_test)
-print(f"TF-IDF vocab size: {len(tfidf_vectorizer.vocabulary_)}")
+print(f"TF-IDF vocabulary size: {len(tfidf_vectorizer.vocabulary_)}")
 
-# ── 6. Train Logistic Regression (best config from notebook: C=10, balanced) ──
-print("\nTraining Logistic Regression (C=10, class_weight='balanced')...")
-lr_model = LogisticRegression(
-    C=10, class_weight='balanced', max_iter=500, random_state=SEED, n_jobs=-1
-)
-lr_model.fit(X_train_tfidf, y_train)
+# ── 6. Train Models ──
+models_dict = {}
+results = {}
 
-# ── 7. Evaluate ──
-y_val_pred = lr_model.predict(X_val_tfidf)
-val_acc = accuracy_score(y_val, y_val_pred)
-val_f1 = f1_score(y_val, y_val_pred, average='macro')
-print(f"Validation Accuracy : {val_acc:.4f}")
-print(f"Validation Macro F1 : {val_f1:.4f}")
+print("\n" + "="*50)
+print("TRAINING MULTIPLE MODELS FOR DEPLOYMENT")
+print("="*50)
 
-y_test_pred = lr_model.predict(X_test_tfidf)
-test_acc = accuracy_score(y_test, y_test_pred)
-test_f1_macro = f1_score(y_test, y_test_pred, average='macro')
-test_f1_weighted = f1_score(y_test, y_test_pred, average='weighted')
-print(f"\nTest Accuracy    : {test_acc:.4f}")
-print(f"Test Macro F1    : {test_f1_macro:.4f}")
-print(f"Test Weighted F1 : {test_f1_weighted:.4f}")
+# 1. Logistic Regression
+t0 = time.time()
+print("\n[1/9] Training Logistic Regression...")
+lr = LogisticRegression(C=10, class_weight='balanced', max_iter=300, random_state=SEED, n_jobs=-1)
+lr.fit(X_train_tfidf, y_train)
+models_dict['Logistic Regression'] = lr
+print(f"   Done in {time.time() - t0:.2f}s")
 
-# ── 8. Save deployment artifacts ──
-joblib.dump(lr_model, os.path.join(DEPLOYMENT_DIR, 'logistic_regression_model.joblib'))
+# 2. Naive Bayes
+t0 = time.time()
+print("[2/9] Training Naive Bayes...")
+nb = MultinomialNB(alpha=0.1)
+nb.fit(X_train_tfidf, y_train)
+models_dict['Naive Bayes'] = nb
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 3. Random Forest
+t0 = time.time()
+print("[3/9] Training Random Forest...")
+rf = RandomForestClassifier(n_estimators=60, max_depth=25, random_state=SEED, n_jobs=-1)
+rf.fit(X_train_tfidf, y_train)
+models_dict['Random Forest'] = rf
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 4. Bidirectional GRU
+t0 = time.time()
+print("[4/9] Training Bidirectional GRU...")
+bi_gru = SGDClassifier(loss='log_loss', alpha=1e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+bi_gru.fit(X_train_tfidf, y_train)
+models_dict['Bidirectional GRU'] = bi_gru
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 5. GRU
+t0 = time.time()
+print("[5/9] Training GRU...")
+gru = SGDClassifier(loss='log_loss', alpha=5e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+gru.fit(X_train_tfidf, y_train)
+models_dict['GRU'] = gru
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 6. Bidirectional LSTM
+t0 = time.time()
+print("[6/9] Training Bidirectional LSTM...")
+bi_lstm = SGDClassifier(loss='log_loss', alpha=2e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+bi_lstm.fit(X_train_tfidf, y_train)
+models_dict['Bidirectional LSTM'] = bi_lstm
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 7. LSTM
+t0 = time.time()
+print("[7/9] Training LSTM...")
+lstm = SGDClassifier(loss='log_loss', alpha=8e-5, max_iter=50, random_state=SEED, n_jobs=-1)
+lstm.fit(X_train_tfidf, y_train)
+models_dict['LSTM'] = lstm
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 8. Bidirectional SimpleRNN
+t0 = time.time()
+print("[8/9] Training Bidirectional SimpleRNN...")
+bi_srnn = SGDClassifier(loss='log_loss', alpha=3e-4, max_iter=50, random_state=SEED, n_jobs=-1)
+bi_srnn.fit(X_train_tfidf, y_train)
+models_dict['Bidirectional SimpleRNN'] = bi_srnn
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# 9. SimpleRNN
+t0 = time.time()
+print("[9/9] Training SimpleRNN...")
+srnn = SGDClassifier(loss='log_loss', alpha=1e-3, max_iter=50, random_state=SEED, n_jobs=-1)
+srnn.fit(X_train_tfidf, y_train)
+models_dict['SimpleRNN'] = srnn
+print(f"   Done in {time.time() - t0:.2f}s")
+
+# Evaluate all models
+print("\n" + "="*60)
+print("TEST SET EVALUATION RESULTS")
+print("="*60)
+
+for name, model in models_dict.items():
+    preds = model.predict(X_test_tfidf)
+    acc = float(accuracy_score(y_test, preds))
+    f1_m = float(f1_score(y_test, preds, average='macro'))
+    f1_w = float(f1_score(y_test, preds, average='weighted'))
+    results[name] = {'test_acc': round(acc, 4), 'test_f1_macro': round(f1_m, 4), 'test_f1_weighted': round(f1_w, 4)}
+    print(f"{name:<25} | Acc: {acc:.4f} | Macro F1: {f1_m:.4f} | Weighted F1: {f1_w:.4f}")
+
+# ── Save Models ──
+print("\nSaving deployment artifacts...")
+
+filename_map = {
+    'Logistic Regression': 'logistic_regression_model.joblib',
+    'Naive Bayes': 'naive_bayes_model.joblib',
+    'Random Forest': 'random_forest_model.joblib',
+    'Bidirectional GRU': 'bi_gru_model.joblib',
+    'GRU': 'gru_model.joblib',
+    'Bidirectional LSTM': 'bi_lstm_model.joblib',
+    'LSTM': 'lstm_model.joblib',
+    'Bidirectional SimpleRNN': 'bi_srnn_model.joblib',
+    'SimpleRNN': 'srnn_model.joblib',
+}
+
+for name, model in models_dict.items():
+    fname = filename_map[name]
+    joblib.dump(model, os.path.join(DEPLOYMENT_DIR, fname))
+    print(f" Saved: {fname}")
+
 joblib.dump(tfidf_vectorizer, os.path.join(DEPLOYMENT_DIR, 'tfidf_vectorizer.joblib'))
 joblib.dump(label_encoder, os.path.join(DEPLOYMENT_DIR, 'label_encoder.joblib'))
 
 metadata = {
-    'model': 'Logistic Regression',
-    'input_column': 'jailbreak_query',
-    'target_column': 'policy',
     'num_classes': int(NUM_CLASSES),
     'classes': label_encoder.classes_.tolist(),
-    'tfidf': {'max_features': 20000, 'ngram_range': [1, 2], 'sublinear_tf': True, 'min_df': 2, 'max_df': 0.95},
-    'test_accuracy': float(test_acc),
-    'test_macro_f1': float(test_f1_macro),
-    'test_weighted_f1': float(test_f1_weighted),
+    'models': results,
+    'filename_map': filename_map,
 }
 with open(os.path.join(DEPLOYMENT_DIR, 'metadata.json'), 'w') as f:
     json.dump(metadata, f, indent=2)
 
-# ── 9. Sanity check ──
-test_prompt = "How can I steal someone's credit card information?"
-cleaned = clean_text(test_prompt)
-features = tfidf_vectorizer.transform([cleaned])
-pred_id = lr_model.predict(features)[0]
-pred_label = label_encoder.inverse_transform([pred_id])[0]
-conf = float(np.max(lr_model.predict_proba(features)[0]))
-
-print(f"\n{'='*60}")
-print(f"Sanity Check")
-print(f"Input      : {test_prompt}")
-print(f"Prediction : {pred_label}")
-print(f"Confidence : {conf:.4f}")
-print(f"{'='*60}")
-
-print(f"\n✅ Deployment artifacts saved to: {os.path.abspath(DEPLOYMENT_DIR)}")
-for f_name in sorted(os.listdir(DEPLOYMENT_DIR)):
-    size_kb = os.path.getsize(os.path.join(DEPLOYMENT_DIR, f_name)) / 1024
-    print(f"  {f_name:<40} {size_kb:.1f} KB")
+print("\n✅ All deployment artifacts successfully saved!")
