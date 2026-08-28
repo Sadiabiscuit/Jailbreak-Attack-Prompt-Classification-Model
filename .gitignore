@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets
+.env
+.env.*
+
+# Local data and generated artifacts
+data/raw/*
+data/processed/*
+*.parquet
+*.csv
+artifacts/results/*
+artifacts/splits/*
+figures/*
+deployment/*.joblib
+deployment/*.json
+
+# Keep repository placeholders
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!artifacts/results/.gitkeep
+!artifacts/splits/.gitkeep
+!figures/.gitkeep
+!deployment/.gitkeep
+
+# Large archives
+*.zip

@@ -1,0 +1,12 @@
+{
+  "project": "Jailbreak Harm Category Classification",
+  "dataset": "JailbreakV-28K",
+  "num_policy_classes": 16,
+  "primary_input": "jailbreak_query",
+  "target": "policy",
+  "notebook": "jailbreak_harm_category_classification.ipynb",
+  "notebook_cells": 95,
+  "deployment_section_present": true,
+  "label_leakage_ablation_present": true,
+  "random_seed": 42
+}

@@ -1,0 +1,17 @@
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+scipy
+pyarrow
+joblib
+gensim
+wordcloud
+datasets
+transformers
+accelerate
+tensorflow
+torch
+jupyter
+notebook
