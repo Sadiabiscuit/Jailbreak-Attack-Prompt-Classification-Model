@@ -1,0 +1,37 @@
+{
+  "model": "Logistic Regression",
+  "input_column": "jailbreak_query",
+  "target_column": "policy",
+  "num_classes": 16,
+  "classes": [
+    "Animal Abuse",
+    "Bias",
+    "Child Abuse Content",
+    "Economic Harm",
+    "Fraud",
+    "Government Decision",
+    "Hate Speech",
+    "Health Consultation",
+    "Illegal Activity",
+    "Malware",
+    "Physical Harm",
+    "Political Sensitivity",
+    "Privacy Violation",
+    "Tailored Unlicensed Advice",
+    "Unethical Behavior",
+    "Violence"
+  ],
+  "tfidf": {
+    "max_features": 20000,
+    "ngram_range": [
+      1,
+      2
+    ],
+    "sublinear_tf": true,
+    "min_df": 2,
+    "max_df": 0.95
+  },
+  "test_accuracy": 0.8885714285714286,
+  "test_macro_f1": 0.8723850885817729,
+  "test_weighted_f1": 0.9171921858926521
+}
