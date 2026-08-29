@@ -233,7 +233,7 @@ This project is licensed under the [MIT License](LICENSE).
 ## Model Explanation video
 https://youtu.be/KF5NQG5ZbPU?si=_myaaoY-Jz6JHQmt
 ## Contributors:
-#Sadia Siddiqa
-#Mahin Husayna
-#SK. Azizul Karim
-#Iftikar Rahman
+**Sadia Siddiqa**
+**Mahin Husayna**
+**SK. Azizul Karim**
+**Iftikar Rahman**
