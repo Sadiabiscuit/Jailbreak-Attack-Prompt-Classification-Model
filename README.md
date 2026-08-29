@@ -230,9 +230,10 @@ The notebook exports a lightweight, deployable inference pipeline (`deployment/`
 
 This project is licensed under the [MIT License](LICENSE).
 
-
-Contributors:
-Sadia Siddiqa
-Mahin Husayna
-SK. Azizul Karim
-Iftikar Rahman
+## Model Explanation video
+https://youtu.be/KF5NQG5ZbPU?si=_myaaoY-Jz6JHQmt
+## Contributors:
+#Sadia Siddiqa
+#Mahin Husayna
+#SK. Azizul Karim
+#Iftikar Rahman
