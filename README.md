@@ -170,3 +170,9 @@ If you use the dataset or this project in academic work, cite the original datas
 ## License
 
 See `LICENSE`.
+
+Contributors:
+Sadia Siddiqa
+Mahin Husayna
+SK. Azizul Karim
+Iftikar Rahman
